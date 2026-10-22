@@ -1,39 +1,7 @@
-from typing import Annotated
-
 from fastapi import FastAPI
-from pydantic import BaseModel, ConfigDict, Field
 
-from keepsense.services import facts
+from keepsense.routers import compare, health
 
 app = FastAPI()
-
-# ponytail: 10k chars is a guess, tune to the LLM context window in step 6
-Text = Annotated[str, Field(max_length=10_000, pattern=r"\S")]
-
-
-class CompareRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    original: Text
-    rewritten: Text
-
-
-class CompareResponse(BaseModel):
-    identical: bool
-    passed: bool
-    issues: list[facts.Issue]
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.post("/compare")
-def compare(request: CompareRequest) -> CompareResponse:
-    issues = facts.compare(request.original, request.rewritten)
-    return CompareResponse(
-        identical=request.original == request.rewritten,
-        passed=not any(issue.severity == "error" for issue in issues),
-        issues=issues,
-    )
+app.include_router(health.router)
+app.include_router(compare.router)
